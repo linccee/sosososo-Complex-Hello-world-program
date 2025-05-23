@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: hello-world-client
+  main:
+    web-application-type: none
+    banner-mode: off
+  
+  # Service discovery configuration
+  cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
+    discovery:
+      enabled: true
+
+# Eureka client configuration
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    refresh:
+      enable: true
+  instance:
+    prefer-ip-address: true
+
+# Feign client configuration
+feign:
+  circuitbreaker:
+    enabled: true
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+        errorDecoder: com.overengineered.client.client.CustomErrorDecoder
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+
+# Client properties
+client:
+  id: ${spring.application.name}-${random.uuid}
+  max-poll-attempts: 60
+  request-timeout-ms: 5000
+  enable-circuit-breaker: true
+  retry:
+    max-attempts: 3
+    backoff-ms: 1000
+    max-backoff-ms: 10000
+    backoff-multiplier: 1.5
+  fallback:
+    enabled: true
+    default-language: en
+    default-message: Hello World (Fallback)
+
+# Logging configuration
+logging:
+  level:
+    com.overengineered.client: INFO
+    org.springframework: WARN
+    com.netflix.discovery: WARN
+    com.overengineered.client.client.AggregatorServiceClient: DEBUG
+
+# Service endpoints
+services:
+  hello-world-aggregator:
+    url: http://hello-world-aggregator/api/v1/hello-world
+    timeout: 5000
+    retry-attempts: 3

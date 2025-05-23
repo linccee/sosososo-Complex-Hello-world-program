@@ -1,0 +1,205 @@
+spring:
+  application:
+    name: hello-world-aggregator
+  profiles:
+    active: dev
+  cache:
+    type: redis
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: aggregator-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.overengineered.aggregator.event
+  zipkin:
+    base-url: http://localhost:9411
+    sender:
+      type: web
+  sleuth:
+    sampler:
+      probability: 1.0
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1/hello-world
+
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+  circuitbreaker:
+    enabled: true
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+
+# Resilience4j circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      helloService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      worldService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    instances:
+      helloService:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+      worldService:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+  bulkhead:
+    instances:
+      helloService:
+        maxConcurrentCalls: 20
+      worldService:
+        maxConcurrentCalls: 20
+  ratelimiter:
+    instances:
+      helloService:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s
+      worldService:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s
+
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers,retries,bulkheads,ratelimiters
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+
+# Custom properties
+aggregator:
+  client:
+    hello-service:
+      base-url: http://hello-service/api/v1/hello
+      timeout: 5000
+      retry-attempts: 3
+    world-service:
+      base-url: http://world-service/api/v1/world
+      timeout: 5000
+      retry-attempts: 3
+  cache:
+    message-ttl-seconds: 3600
+  async:
+    core-pool-size: 10
+    max-pool-size: 50
+    queue-capacity: 100
+    thread-name-prefix: async-exec-
+  security:
+    api-key-header: X-API-Key
+    api-key: ${API_KEY:dev-api-key-12345}
+
+# Logging configuration
+logging:
+  level:
+    com.overengineered.aggregator: DEBUG
+    org.springframework: INFO
+    com.overengineered.aggregator.client: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/aggregator-service.log
+
+---
+# Development profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+---
+# Docker profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+  redis:
+    host: redis
+  kafka:
+    bootstrap-servers: kafka:9092
+  zipkin:
+    base-url: http://zipkin:9411
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+management:
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans

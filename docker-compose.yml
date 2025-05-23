@@ -1,0 +1,222 @@
+version: '3.8'
+
+# 极其复杂的Hello World系统 Docker Compose配置
+services:
+  # 服务发现
+  eureka-server:
+    image: springcloud/eureka
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_CLIENT_REGISTER-WITH-EUREKA=false
+      - EUREKA_CLIENT_FETCH-REGISTRY=false
+    networks:
+      - hello-world-network
+    healthcheck:
+      test: "curl --fail --silent localhost:8761/actuator/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 配置服务器
+  config-server:
+    image: hyness/spring-cloud-config-server
+    container_name: config-server
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_CLOUD_CONFIG_SERVER_GIT_URI=https://github.com/example/hello-world-config
+      - SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL=main
+    networks:
+      - hello-world-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8888/actuator/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis缓存服务
+  redis:
+    image: redis:6.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - hello-world-network
+    healthcheck:
+      test: "redis-cli ping || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MongoDB服务 (用于World服务的数据存储)
+  mongodb:
+    image: mongo:5.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: worlddb
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - hello-world-network
+    healthcheck:
+      test: "mongo --eval 'db.runCommand({ping:1})' --quiet"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL数据库 (用于Hello服务的数据存储)
+  postgres:
+    image: postgres:14-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: hellodb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - hello-world-network
+    healthcheck:
+      test: "pg_isready -U admin -d hellodb"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Zipkin分布式追踪系统
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - hello-world-network
+    healthcheck:
+      test: "wget -q -T 3 -O - http://localhost:9411/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus监控系统
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - hello-world-network
+
+  # Grafana监控面板
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - hello-world-network
+    depends_on:
+      - prometheus
+
+  # Hello服务
+  hello-service:
+    build:
+      context: ./hello-service
+    container_name: hello-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hellodb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_REDIS_HOST=redis
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    networks:
+      - hello-world-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  # World服务
+  world-service:
+    build:
+      context: ./world-service
+    container_name: world-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:password@mongodb:27017/worlddb
+      - SPRING_REDIS_HOST=redis
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    networks:
+      - hello-world-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  # Hello World聚合服务
+  hello-world-aggregator:
+    build:
+      context: ./hello-world-aggregator
+    container_name: hello-world-aggregator
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_REDIS_HOST=redis
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_ZIPKIN_BASEURL=http://zipkin:9411
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    networks:
+      - hello-world-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      hello-service:
+        condition: service_started
+      world-service:
+        condition: service_started
+
+networks:
+  hello-world-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
+  mongodb-data:
+  grafana-data:

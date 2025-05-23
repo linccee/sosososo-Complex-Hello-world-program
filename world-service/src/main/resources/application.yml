@@ -1,0 +1,157 @@
+spring:
+  application:
+    name: world-service
+  profiles:
+    active: dev
+  data:
+    mongodb:
+      uri: mongodb://admin:password@localhost:27017/worlddb
+      auto-index-creation: true
+  cache:
+    type: redis
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: world-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.overengineered.world.event
+  zipkin:
+    base-url: http://localhost:9411
+    sender:
+      type: web
+  sleuth:
+    sampler:
+      probability: 1.0
+
+server:
+  port: 8082
+  servlet:
+    context-path: /api/v1/world
+
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+# Custom properties
+world:
+  generation:
+    default-language: en
+    cache-expiration-seconds: 3600
+    strategies:
+      standard:
+        enabled: true
+        weight: 60
+      emphasized:
+        enabled: true
+        weight: 40
+    planet-types:
+      EARTH: Earth
+      MARS: Mars
+      VENUS: Venus
+      JUPITER: Jupiter
+      SATURN: Saturn
+      NEPTUNE: Neptune
+      URANUS: Uranus
+      MERCURY: Mercury
+      PLUTO: Pluto
+    geographical-scopes:
+      GLOBAL: Global
+      CONTINENTAL: Continental
+      REGIONAL: Regional
+      NATIONAL: National
+      LOCAL: Local
+  event:
+    publishing:
+      enabled: true
+      async: true
+  security:
+    api-key-header: X-API-Key
+    api-key: ${API_KEY:dev-api-key-12345}
+
+# Logging configuration
+logging:
+  level:
+    com.overengineered.world: DEBUG
+    org.springframework: INFO
+    org.mongodb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/world-service.log
+
+---
+# Development profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/worlddb
+      auto-index-creation: true
+
+---
+# Docker profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    mongodb:
+      uri: mongodb://admin:password@mongodb:27017/worlddb
+  redis:
+    host: redis
+  kafka:
+    bootstrap-servers: kafka:9092
+  zipkin:
+    base-url: http://zipkin:9411
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+management:
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans

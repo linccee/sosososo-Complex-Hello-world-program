@@ -1,9 +1,5 @@
 # 极其复杂的 Hello World 系统
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Code Quality](https://img.shields.io/badge/code%20quality-A%2B-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)]()
 
 ## 项目简介
 
@@ -13,7 +9,6 @@
 
 ## 系统架构
 
-![系统架构图](documentation/architecture.png)
 
 系统由以下四个主要组件构成：
 
@@ -83,110 +78,3 @@ hello-world-super-complex/
 - **缓存**：用 Redis 缓存常用结果
 - **熔断**：内置服务熔断机制
 - **指标收集**：收集和暴露性能指标
-
-## 运行指南
-
-### 前提条件
-
-- Java 17+
-- Maven 3.6+
-- Docker & Docker Compose
-
-### 本地运行
-
-1. 克隆仓库：
-
-```bash
-git clone https://github.com/your-username/hello-world-super-complex.git
-cd hello-world-super-complex
-```
-
-2. 构建项目：
-
-```bash
-mvn clean package
-```
-
-3. 启动所有服务 (Docker方式)：
-
-```bash
-docker-compose up -d
-```
-
-4. 使用客户端：
-
-```bash
-cd hello-world-client
-mvn spring-boot:run -Dspring-boot.run.arguments="--language=en --formality=3 --planet=EARTH --scope=GLOBAL"
-```
-
-### 客户端使用
-
-可用选项：
-
-```
---language, -l           语言代码 (例如: en, fr, es)
---formality, -f          正式程度 (1-5, 其中1是随意, 5是非常正式)
---planet, -p             行星类型 (EARTH, MARS, VENUS 等)
---scope, -s              地理范围 (GLOBAL, CONTINENTAL, REGIONAL, NATIONAL, LOCAL)
---delimiter, -d          Hello 和 World 之间的分隔符
---uppercase, -u          将输出转换为大写
---reversed, -r           反转输出
---encrypted, -e          加密输出
---async, -a              异步生成消息
---interval, -i           异步请求的轮询间隔(毫秒)
---color, -c              使用彩色输出
---help, -h               显示帮助信息
-```
-
-示例：
-
-```bash
-# 基本使用
-java -jar target/hello-world-client-1.0.0-SNAPSHOT.jar
-
-# 自定义参数
-java -jar target/hello-world-client-1.0.0-SNAPSHOT.jar --language=fr --formality=5 --planet=MARS --scope=LOCAL --delimiter=" ~ " --uppercase
-```
-
-## API 文档
-
-所有服务都提供了 Swagger UI，可通过以下 URL 访问：
-
-- Hello 服务: http://localhost:8081/api/v1/hello/swagger-ui.html
-- World 服务: http://localhost:8082/api/v1/world/swagger-ui.html
-- 聚合器服务: http://localhost:8080/api/v1/hello-world/swagger-ui.html
-
-## 监控
-
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3000 (默认用户名/密码: admin/admin)
-- **Zipkin**: http://localhost:9411
-- **Eureka**: http://localhost:8761
-
-## 生产环境配置
-
-虽然这个项目主要是一个演示，但它完全可以在生产环境中运行。对于生产环境，建议进行以下配置：
-
-1. 启用 HTTPS 和正确的认证机制
-2. 使用外部配置服务器管理敏感配置
-3. 设置适当的资源限制
-4. 实施日志聚合
-5. 设置适当的备份策略
-6. 实施合适的水平扩展策略
-
-## 贡献指南
-
-1. Fork 仓库
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
-
-## 许可证
-
-本项目采用 MIT 许可证 - 详情见 [LICENSE](LICENSE) 文件
-
-## 致谢
-
-感谢所有对过度工程和复杂性科学做出贡献的开发者。正是因为你们，我们才能用 10000 行代码做到一行代码就能完成的事情。
